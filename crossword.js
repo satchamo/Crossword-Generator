@@ -20,7 +20,8 @@ function WordElement(word, index){
 }
 
 function Crossword(words_in, clues_in){
-    var GRID_SIZE = 50;
+    var GRID_ROWS = 50;
+    var GRID_COLS = 50;
     // This is an index of the positions of the char in the crossword (so we know where we can potentially place words)
     // example {"a" : [{'row' : 10, 'col' : 5}, {'row' : 62, 'col' :17}], {'row' : 54, 'col' : 12}], "b" : [{'row' : 3, 'col' : 13}]} 
     // where the two item arrays are the row and column of where the letter occurs
@@ -53,9 +54,21 @@ function Crossword(words_in, clues_in){
             clear(); // always start with a fresh grid and char_index
             // place the first word in the middle of the grid
             var start_dir = randomDirection();
-            var r = grid.length / 2;
-            var c = r;
-            placeWordAt(word_elements[0].word, word_elements[0].index, r, c, start_dir);
+            var r = Math.floor(grid.length / 2);
+            var c = Math.floor(grid[0].length / 2);
+            var word_element = word_elements[0];
+            if(start_dir == "across"){
+                c -= Math.floor(word_element.word.length/2);
+            } else {
+                r -= Math.floor(word_element.word.length/2);
+            }
+
+            if(canPlaceWordAt(word_element.word, r, c, start_dir) !== false){
+                placeWordAt(word_element.word, word_element.index, r, c, start_dir);
+            } else {
+                bad_words = [word_element];
+                return;
+            }
 
             // initialize the max and min bounds around the words on the grid 
             // so we can shrink wrap the grid around the words later
@@ -164,15 +177,19 @@ function Crossword(words_in, clues_in){
     // helper for placeWordAt();
     var addCellToGrid = function(word, index_of_word_in_input_list, index_of_char, r, c, direction){
         var char = word.charAt(index_of_char);
-        if(grid[r][c] == null) grid[r][c] = new CrosswordCell(char);
+        if(grid[r][c] == null){
+            grid[r][c] = new CrosswordCell(char);
+
+            // init the char_index for that character if needed
+            if(!char_index[char]) char_index[char] = [];
+
+            // add to index
+            char_index[char].push({"row" : r, "col" : c});
+        }
 
         var is_start_of_word = index_of_char == 0;
         grid[r][c][direction] = new CrosswordCellNode(is_start_of_word, index_of_word_in_input_list);
 
-        // init the char_index for that character if needed
-        if(!char_index[char]) char_index[char] = [];
-        // add to index
-        char_index[char].push({"row" : r, "col" : c});
     }	
 
     // place the word at the row and col indicated (the first char goes there)
@@ -212,7 +229,7 @@ function Crossword(words_in, clues_in){
 
         if(direction == "across"){
             // out of bounds (word too long)
-            if(col + word.length >= grid[row].length) return false;
+            if(col + word.length > grid[row].length) return false;
             // can't have a word directly to the left
             if(col - 1 >= 0 && grid[row][col - 1] != null) return false;
             // can't have word directly to the right
@@ -245,7 +262,7 @@ function Crossword(words_in, clues_in){
             }
         } else if(direction == "down"){
             // out of bounds
-            if(row + word.length >= grid.length) return false;
+            if(row + word.length > grid.length) return false;
             // can't have a word directly above
             if(row - 1 >= 0 && grid[row - 1][col] != null) return false;
             // can't have a word directly below
@@ -261,7 +278,7 @@ function Crossword(words_in, clues_in){
             }
 
             // same deal, but look at the column to the right
-            for(var c = col + 1, r = row, i = 0; c < grid[r].length && r < row + word.length; r++, i++){
+            for(var c = col + 1, r = row, i = 0; r < row + word.length && c < grid[r].length; r++, i++){
                 var is_empty = grid[r][c] == null;
                 var is_intersection = grid[r][col] != null && grid[r][col]['char'] == word.charAt(i);
                 var can_place_here = is_empty || is_intersection;
@@ -333,9 +350,9 @@ function Crossword(words_in, clues_in){
     if(words_in.length != clues_in.length) throw "The number of words must equal the number of clues";	
 
     // build the grid;
-    var grid = new Array(GRID_SIZE);
-    for(var i = 0; i < GRID_SIZE; i++){
-        grid[i] = new Array(GRID_SIZE);	
+    var grid = new Array(GRID_ROWS);
+    for(var i = 0; i < GRID_ROWS; i++){
+        grid[i] = new Array(GRID_COLS);	
     }
 
     // build the element list (need to keep track of indexes in the originial input arrays)
@@ -391,3 +408,4 @@ var CrosswordUtils = {
         return html.join("\n");
     }
 }
+
